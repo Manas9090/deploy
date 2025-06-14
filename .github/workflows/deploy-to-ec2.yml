@@ -1,0 +1,39 @@
+name: Auto Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main   # Or any branch you want to trigger from
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Upload Artifacts to EC2
+      run: |
+        # Example: syncing model directory to EC2 /home/ubuntu/app/model
+        scp -r ./model ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/model
+
+    - name: Restart App (optional)
+      run: |
+        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # Navigate to your project directory
+          cd /home/${USER}/app
+
+          # Optional: Pull latest updates, install dependencies, restart services
+          # pip install -r requirements.txt
+          # pkill -f app.py || true
+          # nohup python3 app.py &
+          echo "Artifacts deployed and (optionally) app restarted."
+        EOF
