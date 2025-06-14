@@ -1,9 +1,9 @@
-name: Auto Deploy to EC2
+name: Deploy to EC2 on Push
 
 on:
   push:
     branches:
-      - main   # Trigger on push to main branch
+      - main
 
 jobs:
   deploy:
@@ -20,20 +20,19 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Upload Entire Project to EC2
+    - name: Create app folder on EC2 if it doesn't exist
       run: |
-        scp -r . ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app
+        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ~/app"
 
-    - name: Restart Model on EC2 (Optional)
+    - name: Upload only needed files to EC2
+      run: |
+        rsync -avz --exclude '.git' ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/
+
+    - name: Restart model/app on EC2
       run: |
         ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          cd /home/${USER}/app
-          # Optional: Install dependencies
+          cd ~/app
           pip3 install -r requirements.txt
-          
-          # Kill running model server (adjust for your case)
           pkill -f app.py || true
-          
-          # Restart model (adjust filename as needed)
           nohup python3 app.py > app.log 2>&1 &
         EOF
