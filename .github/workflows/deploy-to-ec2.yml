@@ -3,14 +3,14 @@ name: Auto Deploy to EC2
 on:
   push:
     branches:
-      - main   # Or any branch you want to trigger from
+      - main   # Trigger on push to main branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repo
+    - name: Checkout Repository
       uses: actions/checkout@v3
 
     - name: Setup SSH
@@ -20,20 +20,20 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Upload Artifacts to EC2
+    - name: Upload Entire Project to EC2
       run: |
-        # Example: syncing model directory to EC2 /home/ubuntu/app/model
-        scp -r ./model ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app/model
+        scp -r . ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app
 
-    - name: Restart App (optional)
+    - name: Restart Model on EC2 (Optional)
       run: |
         ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          # Navigate to your project directory
           cd /home/${USER}/app
-
-          # Optional: Pull latest updates, install dependencies, restart services
-          # pip install -r requirements.txt
-          # pkill -f app.py || true
-          # nohup python3 app.py &
-          echo "Artifacts deployed and (optionally) app restarted."
+          # Optional: Install dependencies
+          pip3 install -r requirements.txt
+          
+          # Kill running model server (adjust for your case)
+          pkill -f app.py || true
+          
+          # Restart model (adjust filename as needed)
+          nohup python3 app.py > app.log 2>&1 &
         EOF
